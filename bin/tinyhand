@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# TinyHand launcher. Commands go straight to the running app over D-Bus (instant);
+# otherwise the app is started.
+APP_ID=io.github.tinyhand.Linux
+OBJ=/io/github/tinyhand/Linux
+
+case "$1" in
+  toggle|on|off|clear|settings|quit)
+    if gdbus call --session --dest "$APP_ID" --object-path "$OBJ" \
+        --method org.gtk.Actions.Activate "$1" "[]" "{}" >/dev/null 2>&1; then
+      exit 0
+    fi
+    [ "$1" = quit ] || [ "$1" = off ] || [ "$1" = clear ] && exit 0
+    ;;
+  style)
+    HANDS="$(dirname "$(readlink -f "$0")")/../assets/hands"
+    if [ "$2" != laser ] && [ ! -f "$HANDS/hand_$2.png" ]; then
+      echo "tinyhand: unknown style '$2'. Pick one of: laser $(ls "$HANDS" | sed 's/^hand_//; s/\.png$//' | tr '\n' ' ')" >&2
+      exit 2
+    fi
+    if gdbus call --session --dest "$APP_ID" --object-path "$OBJ" \
+        --method org.gtk.Actions.Activate style "[<'${2//[^a-z]/}'>]" "{}" >/dev/null 2>&1; then
+      exit 0
+    fi
+    ;;
+esac
+
+ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+export PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}"
+exec python3 -m tinyhand "$@"
